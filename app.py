@@ -2,6 +2,7 @@ from flask import Flask, request, send_file, jsonify
 from pdf2image import convert_from_bytes
 from io import BytesIO
 from flask_cors import CORS
+import base64
 
 app = Flask(__name__)
 CORS(app)
@@ -16,11 +17,23 @@ def convert_pdf():
         return jsonify({"error": "No selected file"}), 400
 
     try:
-        images = convert_from_bytes(pdf_file.read(), first_page=1, last_page=1)
-        img_io = BytesIO()
-        images[0].save(img_io, 'PNG')
-        img_io.seek(0)
-        return send_file(img_io, mimetype='image/png')
+        # Convert all pages of the PDF to images (default: all pages)
+        images = convert_from_bytes(pdf_file.read())
+
+        files = []
+        for index, image in enumerate(images):
+            image_bytes_io = BytesIO()
+            image.save(image_bytes_io, 'PNG')
+            image_bytes_io.seek(0)
+
+            encoded_image = base64.b64encode(image_bytes_io.getvalue()).decode('utf-8')
+            files.append({
+                "filename": f"page-{index + 1}.png",
+                "content_type": "image/png",
+                "data": encoded_image
+            })
+
+        return jsonify({"files": files}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
