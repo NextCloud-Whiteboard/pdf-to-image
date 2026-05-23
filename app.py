@@ -3,6 +3,7 @@ from pdf2image import convert_from_bytes
 from io import BytesIO
 from flask_cors import CORS
 import base64
+import shutil
 
 app = Flask(__name__)
 CORS(app)
@@ -36,6 +37,16 @@ def convert_pdf():
         return jsonify({"files": files}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/health", methods=["GET"])
+def health():
+    poppler_ok = shutil.which("pdftoppm") is not None
+    body = {
+        "status": "ok" if poppler_ok else "degraded",
+        "poppler": poppler_ok,
+        "service": "pdf-to-image",
+    }
+    return jsonify(body), (200 if poppler_ok else 503)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
